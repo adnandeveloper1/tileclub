@@ -37,6 +37,9 @@ public class BoardTile : MonoBehaviour
     {
         if (boardManager == null) return;
 
+        if (boardManager.IsInputBlocked())
+            return;
+
         // Still covered by another tile in front of it — ignore the tap entirely.
         if (coveredByTile != null && coveredByTile.gameObject.activeInHierarchy)
             return;

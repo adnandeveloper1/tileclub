@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -8,6 +9,9 @@ public class LevelCompleteHandler : MonoBehaviour
 
     [Tooltip("Khali (0) chhodo to current scene ke naam se number nikal liya jayega (lvl3 -> 3). Warna manually set kar do.")]
     public int levelNumberOverride = 0;
+
+    [Tooltip("Win animation ko visible rehne dene ke liye scene load se pehle wait.")]
+    public float sceneLoadDelay = 0.8f;
 
     /// <summary>Apna existing win-detection code isi function ko call kare.</summary>
     public void OnLevelWon()
@@ -23,6 +27,12 @@ public class LevelCompleteHandler : MonoBehaviour
             Debug.LogWarning("LevelCompleteHandler: GameManager scene mein nahi mila — progress save nahi hui.");
         }
 
+        StartCoroutine(LoadHomeAfterWinAnimation());
+    }
+
+    private IEnumerator LoadHomeAfterWinAnimation()
+    {
+        yield return new WaitForSeconds(sceneLoadDelay);
         SceneManager.LoadScene(homeSceneName);
     }
 

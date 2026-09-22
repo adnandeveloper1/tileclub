@@ -1,7 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
@@ -25,9 +27,38 @@ public class GameBoardManager : MonoBehaviour
     [SerializeField] private float matchClearDelay = 0.25f;
     [SerializeField] private float shrinkDuration = 0.2f;
 
+    [Header("Match effect")]
+    [SerializeField] private bool playMatchBurst = true;
+    [SerializeField] private MatchBurstEffect matchBurstEffect;
+
     [Header("Events (wire these to your popups)")]
     public UnityEvent onLevelComplete;
     public UnityEvent onGameOver;
+    [SerializeField] private GameObject gameLossPanel;
+    [SerializeField] private GameManager gameManager;
+    [Tooltip("Leave 0 to read the number from the scene name, for example lvl1 = level 1.")]
+    [SerializeField] private int levelNumberOverride;
+
+    [Header("Win wisdom animation")]
+    [SerializeField] private RectTransform sunCircle;
+    [SerializeField] private TMP_Text wisdomText;
+    [SerializeField] private float wisdomAnimationDuration = 0.6f;
+    [SerializeField] private float sunStartScale = 0.4f;
+    [SerializeField] private float sunOvershootScale = 1.3f;
+
+    [Header("Coins")]
+    [Tooltip("Drag the coin TMP text from this level's Canvas here.")]
+    [SerializeField] private TMP_Text coinText;
+    [Tooltip("Optional: effect that flies coin icons into the coin bar after a level reward.")]
+    [SerializeField] private CoinFlyEffect coinFlyEffect;
+
+    [Header("Level reward bar")]
+    [Tooltip("Drag the colored Image that fills inside the reward bar.")]
+    [SerializeField] private Image levelRewardBar;
+    [Tooltip("Color used by the filled part of the level reward bar.")]
+    [SerializeField] private Color levelRewardFillColor = Color.white;
+    [SerializeField] private int totalRewardBarSegments = 4;
+    [SerializeField] private float rewardBarFillDuration = 0.35f;
 
     [Header("Level start animation")]
     [SerializeField] private bool playStartAnimation = true;
@@ -35,6 +66,14 @@ public class GameBoardManager : MonoBehaviour
     [SerializeField] private float startAnimationStagger = 0.035f;
     [SerializeField] private float startAnimationOffset = 180f;
     [SerializeField] private float tutorialPopupDelay = 1f;
+
+    [Header("Level win exit animation (tray leaves — opposite of entrance)")]
+    [Tooltip("If on, the tray row + brick reveal plays in reverse (sliding UP and away, bricks disappearing) right before the Level Complete event fires.")]
+    [SerializeField] private bool playWinExitAnimation = true;
+    [Tooltip("Leave 0 to reuse Start Animation Duration above.")]
+    [SerializeField] private float winExitAnimationDuration = 0f;
+    [Tooltip("Leave 0 to reuse Start Animation Offset above.")]
+    [SerializeField] private float winExitAnimationOffset = 0f;
 
     private Vector3[] slotHomePositions;
     private readonly Queue<BoardTile> pendingTiles = new Queue<BoardTile>();
@@ -44,9 +83,28 @@ public class GameBoardManager : MonoBehaviour
     private bool startAnimationPlaying;
     private bool processingTrayQueue;
     private Rect lastCanvasRect;
+    private bool skipTutorialOnReplay;
+    private bool inputBlocked;
+    private Vector3 finalSunScale;
 
     private void Awake()
     {
+        if (gameManager == null)
+            gameManager = GameManager.Instance;
+
+        UpdateCoinText();
+
+        if (sunCircle != null)
+            finalSunScale = sunCircle.localScale;
+
+        SetupLevelRewardBar();
+
+        if (gameLossPanel == null)
+            gameLossPanel = FindInactiveSceneObject("GameLossPanel");
+
+        if (gameLossPanel != null)
+            gameLossPanel.SetActive(false);
+
         slotHomePositions = new Vector3[traySlots.Length];
         for (int i = 0; i < traySlots.Length; i++)
         {
@@ -58,10 +116,30 @@ public class GameBoardManager : MonoBehaviour
         remainingTileCount = GetComponentsInChildren<BoardTile>(true).Length;
     }
 
+    private void OnEnable()
+    {
+        if (gameManager != null)
+            gameManager.OnCoinsChanged += HandleCoinsChanged;
+    }
+
+    private void OnDisable()
+    {
+        if (gameManager != null)
+            gameManager.OnCoinsChanged -= HandleCoinsChanged;
+    }
+
+    private void HandleCoinsChanged(int totalCoins)
+    {
+        if (coinText != null)
+            coinText.text = totalCoins.ToString();
+    }
+
     private void Start()
     {
         Canvas.ForceUpdateCanvases();
         CaptureSlotHomePositions();
+        skipTutorialOnReplay = ButtonActions.ConsumeReplayTutorialSkip();
+        SetBoardInputBlocked(false);
 
         if (playStartAnimation)
             StartCoroutine(PlayLevelStartAnimation());
@@ -88,7 +166,7 @@ public class GameBoardManager : MonoBehaviour
     /// <summary>Called by a BoardTile when the player taps it.</summary>
     public void OnTileTapped(BoardTile tile)
     {
-        if (levelEnded || startAnimationPlaying) return;
+        if (inputBlocked || levelEnded || startAnimationPlaying) return;
 
         if (!queuedTiles.Add(tile))
             return;
@@ -113,8 +191,7 @@ public class GameBoardManager : MonoBehaviour
             int slotIndex = FindNextEmptySlot();
             if (slotIndex == -1)
             {
-                levelEnded = true;
-                onGameOver?.Invoke();
+                ShowGameLoss();
                 break;
             }
 
@@ -201,13 +278,58 @@ public class GameBoardManager : MonoBehaviour
             boardTiles[i].transform.localScale = tileScales[i];
         }
 
-        yield return new WaitForSeconds(tutorialPopupDelay);
+        if (!skipTutorialOnReplay)
+        {
+            yield return new WaitForSeconds(tutorialPopupDelay);
 
-        GameObject tutorialPopup = FindInactiveSceneObject("Tutorial popup");
-        if (tutorialPopup != null)
-            tutorialPopup.SetActive(true);
+            GameObject tutorialPopup = FindInactiveSceneObject("Tutorial popup");
+            if (tutorialPopup != null)
+                tutorialPopup.SetActive(true);
+        }
 
         startAnimationPlaying = false;
+    }
+
+    /// <summary>
+    /// Mirror image of PlayLevelStartAnimation: the tray row slides UP and
+    /// away (instead of in from below), and the brown tray's brick reveal
+    /// empties back out (instead of filling up) — brick by brick, in reverse.
+    /// Runs once, right before the Level Complete event fires.
+    /// </summary>
+    private IEnumerator PlayLevelCompleteExitAnimation()
+    {
+        float duration = winExitAnimationDuration > 0f ? winExitAnimationDuration : startAnimationDuration;
+        float offset = winExitAnimationOffset > 0f ? winExitAnimationOffset : startAnimationOffset;
+
+        GameObject trayRow = GameObject.Find("ribbon");
+        bool hasTrayRow = trayRow != null;
+        Vector3 trayRowStartPosition = hasTrayRow ? trayRow.transform.localPosition : Vector3.zero;
+        Vector3 trayRowExitPosition = trayRowStartPosition + Vector3.up * offset;
+
+        Image brownTray = FindBrownTrayImage();
+
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float progress = Mathf.Clamp01(elapsed / duration);
+            float eased = EaseInBack(progress);
+
+            if (hasTrayRow)
+                trayRow.transform.localPosition = Vector3.LerpUnclamped(trayRowStartPosition, trayRowExitPosition, eased);
+
+            // Bricks disappear in the opposite order/direction from how they filled in.
+            if (brownTray != null)
+                brownTray.fillAmount = Mathf.Floor((1f - progress) * 7f) / 7f;
+
+            yield return null;
+        }
+
+        if (hasTrayRow)
+            trayRow.transform.localPosition = trayRowExitPosition;
+
+        if (brownTray != null)
+            brownTray.fillAmount = 0f;
     }
 
     private Image FindBrownTrayImage()
@@ -233,6 +355,14 @@ public class GameBoardManager : MonoBehaviour
         float c3 = c1 + 1f;
         float adjusted = progress - 1f;
         return 1f + c3 * adjusted * adjusted * adjusted + c1 * adjusted * adjusted;
+    }
+
+    /// <summary>Mirror of EaseOutBack — starts slow, overshoots backward, then accelerates away. Feels like the reverse of the entrance.</summary>
+    private float EaseInBack(float progress)
+    {
+        float c1 = 1.70158f;
+        float c3 = c1 + 1f;
+        return c3 * progress * progress * progress - c1 * progress * progress;
     }
 
     private int FindNextEmptySlot()
@@ -273,13 +403,190 @@ public class GameBoardManager : MonoBehaviour
         if (remainingTileCount <= 0)
         {
             levelEnded = true;
-            onLevelComplete?.Invoke();
+
+            if (playWinExitAnimation)
+                yield return StartCoroutine(PlayLevelCompleteExitAnimation());
+
+            TriggerLevelCompletePopup();
         }
         else if (FindNextEmptySlot() == -1)
         {
-            levelEnded = true;
-            onGameOver?.Invoke();
+            ShowGameLoss();
         }
+    }
+
+    private void TriggerLevelCompletePopup()
+    {
+        SetBoardInputBlocked(true);
+
+        if (gameManager == null)
+            gameManager = GameManager.Instance;
+
+        bool rewardGranted = false;
+        int wisdomBefore = 0;
+        int wisdomAfter = 0;
+        int coinsAfter = gameManager != null ? gameManager.Coins : 0;
+        if (gameManager != null)
+        {
+            int levelNumber = GetLevelNumber();
+            rewardGranted = gameManager.TryAwardWisdomForLevel(levelNumber, out wisdomBefore, out wisdomAfter);
+            bool coinsRewarded = gameManager.TryAwardCoinsForLevel(levelNumber, out _, out coinsAfter);
+
+            if (coinsRewarded && coinFlyEffect != null)
+                coinFlyEffect.PlayBurst();
+        }
+
+        // Let win-panel listeners activate the panel before changing its UI.
+        onLevelComplete?.Invoke();
+
+        if (rewardGranted)
+            StartCoroutine(PlayWisdomWinAnimationNextFrame(wisdomBefore, wisdomAfter));
+        else if (gameManager != null && wisdomText != null)
+            wisdomText.text = gameManager.Wisdom.ToString();
+
+        if (coinText != null)
+            coinText.text = coinsAfter.ToString();
+
+        if (gameManager != null)
+            StartCoroutine(UpdateLevelRewardBarNextFrame(gameManager.LastRewardedLevel));
+    }
+
+    private void UpdateCoinText()
+    {
+        if (coinText != null && gameManager != null)
+            coinText.text = gameManager.Coins.ToString();
+    }
+
+    private void SetupLevelRewardBar()
+    {
+        if (levelRewardBar == null)
+            return;
+
+        levelRewardBar.type = Image.Type.Filled;
+        levelRewardBar.fillMethod = Image.FillMethod.Horizontal;
+        levelRewardBar.fillOrigin = (int)Image.OriginHorizontal.Left;
+        levelRewardBar.color = levelRewardFillColor;
+
+        int lastCompletedLevel = gameManager != null ? gameManager.LastRewardedLevel : 0;
+        levelRewardBar.fillAmount = GetRewardBarProgress(lastCompletedLevel);
+    }
+
+    private IEnumerator UpdateLevelRewardBarNextFrame(int lastCompletedLevel)
+    {
+        yield return null;
+
+        if (levelRewardBar == null)
+            yield break;
+
+        float from = levelRewardBar.fillAmount;
+        float to = GetRewardBarProgress(lastCompletedLevel);
+        float elapsed = 0f;
+
+        while (elapsed < rewardBarFillDuration)
+        {
+            elapsed += Time.deltaTime;
+            levelRewardBar.fillAmount = Mathf.Lerp(from, to, Mathf.Clamp01(elapsed / rewardBarFillDuration));
+            yield return null;
+        }
+
+        levelRewardBar.fillAmount = to;
+    }
+
+    private float GetRewardBarProgress(int lastCompletedLevel)
+    {
+        int segmentCount = Mathf.Max(1, totalRewardBarSegments);
+        return Mathf.Clamp01((float)Mathf.Max(0, lastCompletedLevel) / segmentCount);
+    }
+
+    private int GetLevelNumber()
+    {
+        if (levelNumberOverride > 0)
+            return levelNumberOverride;
+
+        string numberPart = System.Text.RegularExpressions.Regex.Match(SceneManager.GetActiveScene().name, @"\d+").Value;
+        if (int.TryParse(numberPart, out int parsedLevelNumber))
+            return parsedLevelNumber;
+
+        Debug.LogWarning("GameBoardManager: level number scene name se nahi mila. Level Number Override set kar dein.");
+        return 0;
+    }
+
+    private IEnumerator PlayWisdomWinAnimation(int fromValue, int toValue)
+    {
+        if (sunCircle != null)
+            sunCircle.localScale = finalSunScale * sunStartScale;
+
+        if (wisdomText != null)
+            wisdomText.text = fromValue.ToString();
+
+        float elapsed = 0f;
+        while (elapsed < wisdomAnimationDuration)
+        {
+            elapsed += Time.deltaTime;
+            float progress = Mathf.Clamp01(elapsed / wisdomAnimationDuration);
+            float eased = EaseOutWisdomBack(progress);
+
+            if (sunCircle != null)
+                sunCircle.localScale = finalSunScale * Mathf.LerpUnclamped(sunStartScale, 1f, eased);
+
+            if (wisdomText != null)
+                wisdomText.text = Mathf.RoundToInt(Mathf.Lerp(fromValue, toValue, progress)).ToString();
+
+            yield return null;
+        }
+
+        if (sunCircle != null)
+            sunCircle.localScale = finalSunScale;
+
+        if (wisdomText != null)
+            wisdomText.text = toValue.ToString();
+    }
+
+    private IEnumerator PlayWisdomWinAnimationNextFrame(int fromValue, int toValue)
+    {
+        yield return null;
+        yield return StartCoroutine(PlayWisdomWinAnimation(fromValue, toValue));
+    }
+
+    private float EaseOutWisdomBack(float progress)
+    {
+        float c1 = 1.70158f * Mathf.Max(1.3f, sunOvershootScale);
+        float c3 = c1 + 1f;
+        float adjusted = progress - 1f;
+        return 1f + c3 * adjusted * adjusted * adjusted + c1 * adjusted * adjusted;
+    }
+
+    private void ShowGameLoss()
+    {
+        levelEnded = true;
+        SetBoardInputBlocked(true);
+
+        if (gameLossPanel != null)
+            gameLossPanel.SetActive(true);
+
+        onGameOver?.Invoke();
+    }
+
+    public void SetBoardInputBlocked(bool blocked)
+    {
+        inputBlocked = blocked;
+
+        BoardTile[] tiles = GetComponentsInChildren<BoardTile>(true);
+        foreach (BoardTile tile in tiles)
+        {
+            Button button = tile.GetComponent<Button>();
+            if (button != null)
+                button.interactable = !blocked;
+
+            Image image = tile.GetComponent<Image>();
+            if (image != null)
+                image.raycastTarget = !blocked;
+        }
+    }
+
+    public bool IsInputBlocked()
+    {
+        return inputBlocked;
     }
 
     private IEnumerator CheckForMatch()
@@ -321,6 +628,9 @@ public class GameBoardManager : MonoBehaviour
                 }
 
                 List<int> toClear = new List<int> { a, b, c };
+
+                if (playMatchBurst && matchBurstEffect != null)
+                    matchBurstEffect.PlayBurst(traySlots[a].rectTransform.position);
 
                 float elapsed = 0f;
                 while (elapsed < shrinkDuration)
