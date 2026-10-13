@@ -14,7 +14,11 @@ public enum TileIconType
     Cheese,
     Pizza,
     Tomato,
-    Rose
+    Rose,
+    icecream,
+    cupcake,
+    flashlight
+
 }
 
 [Serializable]

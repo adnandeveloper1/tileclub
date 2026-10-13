@@ -183,7 +183,7 @@ public class GameManager : MonoBehaviour
 
     /// <summary>Rewards coins only the first time a level is completed.</summary>
     public bool TryAwardCoinsForLevel(int levelNumber, out int coinsBefore, out int coinsAfter)
-    {
+    { 
         coinsBefore = Coins;
         coinsAfter = Coins;
 
@@ -191,6 +191,7 @@ public class GameManager : MonoBehaviour
             return false;
 
         int reward = GetCoinReward(levelNumber);
+        Debug.Log($"[CoinReward] level={levelNumber}, reward={reward}, coinsBefore={Coins}, lastRewarded={LastRewardedCoinLevel}");
         Coins = Mathf.Max(0, Coins + reward);
         LastRewardedCoinLevel = levelNumber;
 
@@ -235,4 +236,41 @@ public class GameManager : MonoBehaviour
     }
 
     public void ToggleSound() => SetSoundMuted(!IsSoundMuted);
+
+    // ---------------- Reset ----------------
+
+/// <summary>Poori game ko fresh-install state par le aata hai.
+/// Coins 0, Wisdom 83 (InitialWisdom), Level 1 start, sirf Level 1 unlocked.</summary>
+public void ResetAllProgress(bool keepSoundSetting = true)
+{
+    bool wasMuted = IsSoundMuted;
+
+    PlayerPrefs.DeleteAll();
+
+    Coins = 0;
+    Wisdom = InitialWisdom;
+    PreviousWisdom = InitialWisdom;
+    LastRewardedLevel = 0;
+    LastRewardedCoinLevel = 0;
+    HighestUnlockedLevel = 1;
+    CurrentLevelNumber = 1;
+    IsSoundMuted = keepSoundSetting ? wasMuted : false;
+
+    PlayerPrefs.SetInt(HighestUnlockedLevelKey, HighestUnlockedLevel);
+    PlayerPrefs.SetInt(CurrentLevelNumberKey, CurrentLevelNumber);
+    PlayerPrefs.SetInt(CoinsKey, Coins);
+    PlayerPrefs.SetInt(WisdomKey, Wisdom);
+    PlayerPrefs.SetInt(PreviousWisdomKey, PreviousWisdom);
+    PlayerPrefs.SetInt(LastRewardedLevelKey, LastRewardedLevel);
+    PlayerPrefs.SetInt(LastRewardedCoinLevelKey, LastRewardedCoinLevel);
+    PlayerPrefs.SetInt(SoundMutedKey, IsSoundMuted ? 1 : 0);
+    PlayerPrefs.Save();
+
+    AudioListener.volume = IsSoundMuted ? 0f : 1f;
+
+    OnCoinsChanged?.Invoke(Coins);
+    OnWisdomChanged?.Invoke(Wisdom);
+    OnCurrentLevelChanged?.Invoke(CurrentLevelNumber);
+    OnSoundToggled?.Invoke(IsSoundMuted);
+}
 }

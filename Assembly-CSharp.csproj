@@ -59,15 +59,21 @@
     <UnityVersion>2022.3.62f2</UnityVersion>
   </PropertyGroup>
   <ItemGroup>
-    <Analyzer Include="C:\Users\Naverah\.vscode\extensions\visualstudiotoolsforunity.vstuc-1.3.1\Analyzers\Microsoft.Unity.Analyzers.dll" />
+    <Analyzer Include="C:\Users\Naverah\.vscode\extensions\visualstudiotoolsforunity.vstuc-1.3.2\Analyzers\Microsoft.Unity.Analyzers.dll" />
     <Analyzer Include="D:\unity_ide\2022.3.62f2\Editor\Data\Tools\Unity.SourceGenerators\Unity.SourceGenerators.dll" />
     <Analyzer Include="D:\unity_ide\2022.3.62f2\Editor\Data\Tools\Unity.SourceGenerators\Unity.Properties.SourceGenerator.dll" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\script\BirdFlyer.cs" />
+    <Compile Include="Assets\script\TouchEffect.cs" />
+    <Compile Include="Assets\script\LevelProgress.cs" />
     <Compile Include="Assets\script\FillBarByPoints.cs" />
+    <Compile Include="Assets\script\LoadeSceneButton.cs" />
     <Compile Include="Assets\script\LevelButtonBounceEffect.cs" />
+    <Compile Include="Assets\script\LevelData.cs" />
     <Compile Include="Assets\script\WinPanelActivator.cs" />
+    <Compile Include="Assets\script\HomeStatsDisplay.cs" />
+    <Compile Include="Assets\script\WorldPanelUI.cs" />
     <Compile Include="Assets\script\GameManager.cs" />
     <Compile Include="Assets\script\TileIconDatabase.cs" />
     <Compile Include="Assets\script\CoinFlyEffect.cs" />
@@ -76,6 +82,7 @@
     <Compile Include="Assets\script\TutorialDemoController.cs" />
     <Compile Include="Assets\script\ButtonActions.cs" />
     <Compile Include="Assets\TutorialInfo\Scripts\Readme.cs" />
+    <Compile Include="Assets\script\WorldData.cs" />
     <Compile Include="Assets\script\LoadingBarController.cs" />
     <Compile Include="Assets\script\GameBoardManager.cs" />
     <Compile Include="Assets\script\LevelSceneLoader.cs" />
@@ -83,9 +90,13 @@
     <Compile Include="Assets\script\TwinkleEffect.cs" />
     <Compile Include="Assets\script\LevelCompleteHandler.cs" />
     <Compile Include="Assets\script\CloudDrift.cs" />
+    <Compile Include="Assets\script\LevelManager.cs" />
+    <Compile Include="Assets\script\BackButtonAutoHide.cs" />
     <Compile Include="Assets\script\RewardBarPortionHelper.cs" />
+    <Compile Include="Assets\script\LevelButtonUI.cs" />
     <Compile Include="Assets\script\SafeAreaFitter.cs" />
     <Compile Include="Assets\script\LeafFall.cs" />
+    <Compile Include="Assets\script\LeafAnim.cs" />
     <Compile Include="Assets\script\MatchBurstEffect.cs" />
     <Compile Include="Assets\script\BoardTile.cs" />
   </ItemGroup>

@@ -62,6 +62,6 @@ public class ButtonActions : MonoBehaviour
         PlayerPrefs.SetInt(SkipTutorialKey, 1);
         PlayerPrefs.Save();
 
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+      SceneManager.LoadScene(gameSceneName);
     }
 }

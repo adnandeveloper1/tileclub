@@ -1554,7 +1554,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   homeSceneName: Home
-  levelNumberOverride: 0
+  levelNumberOverride: 1
   sceneLoadDelay: 0.8
 --- !u!4 &317867263
 Transform:
@@ -2973,52 +2973,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 594078535}
   m_CullTransparentMesh: 1
---- !u!1 &616323820
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 616323822}
-  - component: {fileID: 616323821}
-  m_Layer: 0
-  m_Name: GameManager
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &616323821
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 616323820}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e163b7d1f339b264cb801c9a6180de9a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  wisdomRewardsByLevel: 0d000000
-  coinRewardsByLevel: 32000000
---- !u!4 &616323822
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 616323820}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 535.6695, y: 841.09863, z: 9.808336}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &647436736
 GameObject:
   m_ObjectHideFlags: 0
@@ -4007,6 +3961,7 @@ GameObject:
   - component: {fileID: 792060185}
   - component: {fileID: 792060187}
   - component: {fileID: 792060186}
+  - component: {fileID: 792060188}
   m_Layer: 5
   m_Name: coins
   m_TagString: Untagged
@@ -4132,6 +4087,26 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 792060184}
   m_CullTransparentMesh: 1
+--- !u!114 &792060188
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 792060184}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4f6d3698ef115894bbaee0b926f8e89f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  coinSprite: {fileID: 21300000, guid: c6261bd114c9d10448c6ece0aa8b54cb, type: 3}
+  target: {fileID: 792060185}
+  coinCount: 8
+  coinSize: {x: 100, y: 100}
+  startSpread: 70
+  arcHeight: 90
+  duration: 0.8
+  stagger: 0.06
 --- !u!1 &793752258
 GameObject:
   m_ObjectHideFlags: 0
@@ -8794,7 +8769,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f3f34c2389af5bb4088c15b3a79f6b0c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gameManager: {fileID: 616323821}
+  gameManager: {fileID: 0}
   buttonLabel: {fileID: 1172402640}
   buttonRect: {fileID: 1873351045}
   sprinkleBurstEffect: {fileID: 0}
@@ -9323,7 +9298,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1731252390}
   - component: {fileID: 1731252391}
-  - component: {fileID: 1731252392}
   m_Layer: 5
   m_Name: GameBoard
   m_TagString: Untagged
@@ -9396,6 +9370,8 @@ MonoBehaviour:
   - {fileID: 1803304268}
   - {fileID: 327196482}
   - {fileID: 692978716}
+  trayFitBoundsOverride: {fileID: 0}
+  tilePaddingOverrides: []
   flyDuration: 0.3
   matchClearDelay: 0.25
   shrinkDuration: 0.2
@@ -9420,7 +9396,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   gameLossPanel: {fileID: 1611132081}
-  gameManager: {fileID: 616323821}
+  gameManager: {fileID: 0}
   levelNumberOverride: 1
   sunCircle: {fileID: 342564179}
   wisdomText: {fileID: 843630710}
@@ -9428,10 +9404,10 @@ MonoBehaviour:
   sunStartScale: 0.4
   sunOvershootScale: 1.15
   coinText: {fileID: 792060186}
-  coinFlyEffect: {fileID: 1731252392}
-  levelRewardBar: {fileID: 1067192191}
+  levelRewardBarSegments:
+  - {fileID: 1067192191}
   levelRewardFillColor: {r: 0.8113208, g: 0.06505875, b: 0.06505875, a: 1}
-  totalRewardBarSegments: 1
+  levelRewardEmptyColor: {r: 1, g: 0.65, b: 0.2, a: 1}
   rewardBarFillDuration: 0.35
   playStartAnimation: 1
   startAnimationDuration: 0.45
@@ -9441,26 +9417,6 @@ MonoBehaviour:
   playWinExitAnimation: 1
   winExitAnimationDuration: 0
   winExitAnimationOffset: 0
---- !u!114 &1731252392
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1731252389}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4f6d3698ef115894bbaee0b926f8e89f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  coinSprite: {fileID: 21300000, guid: c6261bd114c9d10448c6ece0aa8b54cb, type: 3}
-  target: {fileID: 792060185}
-  coinCount: 8
-  coinSize: {x: 30, y: 30}
-  startSpread: 70
-  arcHeight: 90
-  duration: 0.8
-  stagger: 0.06
 --- !u!1 &1764557140
 GameObject:
   m_ObjectHideFlags: 0
@@ -11477,7 +11433,19 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 2036632521}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 1565615791}
+        m_TargetAssemblyTypeName: ButtonActions, Assembly-CSharp
+        m_MethodName: OnHomeButtonPressed
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!114 &2036632521
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12177,4 +12145,3 @@ SceneRoots:
   - {fileID: 2009178521}
   - {fileID: 1316463682}
   - {fileID: 1565615792}
-  - {fileID: 616323822}

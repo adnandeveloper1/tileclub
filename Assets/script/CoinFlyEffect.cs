@@ -31,8 +31,17 @@ public class CoinFlyEffect : MonoBehaviour
 
     public void PlayBurst()
     {
-        if (coinSprite == null || target == null)
+        if (coinSprite == null)
+        {
+            Debug.LogWarning($"{nameof(CoinFlyEffect)} on {name} cannot play: Coin Sprite is not assigned.", this);
             return;
+        }
+
+        if (target == null)
+        {
+            Debug.LogWarning($"{nameof(CoinFlyEffect)} on {name} cannot play: Target is not assigned.", this);
+            return;
+        }
 
         for (int i = 0; i < coinImages.Count; i++)
         {

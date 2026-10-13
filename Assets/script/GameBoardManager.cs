@@ -22,6 +22,31 @@ public class GameBoardManager : MonoBehaviour
     [Header("Tray (7 slot Images — start with Sprite = None, Alpha = 0)")]
     [SerializeField] private Image[] traySlots;
 
+    [Header("Tray auto-fit (runtime size calculation)")]
+    [Tooltip("Optional. If left empty, the brown tray image ('mini boxes image ') found in the scene is used as the fitting bounds.")]
+    [SerializeField] private RectTransform trayFitBoundsOverride;
+
+    [System.Serializable]
+    public struct TilePaddingOverride
+    {
+        [Tooltip("Drag the exact tile icon sprite this override applies to.")]
+        public Sprite icon;
+        [Tooltip("Manual Width/Height for this tile icon inside its tray slot. Leave at 0,0 to let automatic sizing handle it instead.")]
+        public Vector2 size;
+        [Tooltip("Extra local position offset applied only to this tile icon once it settles into its tray slot.")]
+        public Vector2 positionOffset;
+    }
+
+    private struct TileFitOverride
+    {
+        public Vector2 size;
+        public Vector2 positionOffset;
+    }
+
+    [Tooltip("Optional per-tile fine-tuning. Add one entry per tile icon that still looks too big/small (or off-center) after the automatic fit — leave empty to rely purely on automatic sizing.")]
+    [SerializeField] private List<TilePaddingOverride> tilePaddingOverrides = new List<TilePaddingOverride>();
+    private Dictionary<Sprite, TileFitOverride> tileFitOverrideLookup;
+
     [Header("Timing")]
     [SerializeField] private float flyDuration = 0.3f;
     [SerializeField] private float matchClearDelay = 0.25f;
@@ -49,15 +74,14 @@ public class GameBoardManager : MonoBehaviour
     [Header("Coins")]
     [Tooltip("Drag the coin TMP text from this level's Canvas here.")]
     [SerializeField] private TMP_Text coinText;
-    [Tooltip("Optional: effect that flies coin icons into the coin bar after a level reward.")]
-    [SerializeField] private CoinFlyEffect coinFlyEffect;
 
     [Header("Level reward bar")]
-    [Tooltip("Drag the colored Image that fills inside the reward bar.")]
-    [SerializeField] private Image levelRewardBar;
-    [Tooltip("Color used by the filled part of the level reward bar.")]
+    [Tooltip("Drag each segment's own Image here, in left-to-right order (e.g. seg1, seg2, seg3, seg4). The number of entries here IS the total segment count — no separate count field needed.")]
+    [SerializeField] private Image[] levelRewardBarSegments = new Image[0];
+    [Tooltip("Color applied to a segment once it counts as completed/filled.")]
     [SerializeField] private Color levelRewardFillColor = Color.white;
-    [SerializeField] private int totalRewardBarSegments = 4;
+    [Tooltip("Color applied to a segment that hasn't been earned yet.")]
+    [SerializeField] private Color levelRewardEmptyColor = new Color(1f, 0.65f, 0.2f, 1f);
     [SerializeField] private float rewardBarFillDuration = 0.35f;
 
     [Header("Level start animation")]
@@ -76,6 +100,7 @@ public class GameBoardManager : MonoBehaviour
     [SerializeField] private float winExitAnimationOffset = 0f;
 
     private Vector3[] slotHomePositions;
+    private Vector3[] slotHomeScales;
     private readonly Queue<BoardTile> pendingTiles = new Queue<BoardTile>();
     private readonly HashSet<BoardTile> queuedTiles = new HashSet<BoardTile>();
     private int remainingTileCount;
@@ -86,6 +111,7 @@ public class GameBoardManager : MonoBehaviour
     private bool skipTutorialOnReplay;
     private bool inputBlocked;
     private Vector3 finalSunScale;
+    private Vector2 traySlotTargetSize;
 
     private void Awake()
     {
@@ -105,9 +131,26 @@ public class GameBoardManager : MonoBehaviour
         if (gameLossPanel != null)
             gameLossPanel.SetActive(false);
 
+        AutoFitTraySlotsToBrownTray();
+
+        tileFitOverrideLookup = new Dictionary<Sprite, TileFitOverride>();
+        foreach (TilePaddingOverride entry in tilePaddingOverrides)
+        {
+            if (entry.icon != null && !tileFitOverrideLookup.ContainsKey(entry.icon))
+            {
+                tileFitOverrideLookup.Add(entry.icon, new TileFitOverride
+                {
+                    size = entry.size,
+                    positionOffset = entry.positionOffset
+                });
+            }
+        }
+
         slotHomePositions = new Vector3[traySlots.Length];
+        slotHomeScales = new Vector3[traySlots.Length];
         for (int i = 0; i < traySlots.Length; i++)
         {
+            slotHomeScales[i] = traySlots[i].rectTransform.localScale;
             traySlots[i].sprite = null;
             SetAlpha(traySlots[i], 0f);
         }
@@ -338,6 +381,102 @@ public class GameBoardManager : MonoBehaviour
         return trayObject != null ? trayObject.GetComponent<Image>() : null;
     }
 
+    /// <summary>
+    /// Calculates each slot's width/height at runtime from the brown tray's
+    /// own bounds (divided evenly by slot count) instead of relying on each
+    /// slot's Width/Height being set correctly by hand in the Inspector.
+    /// Also turns on Preserve Aspect so a tile sprite never overflows its
+    /// calculated box, whatever its native resolution is.
+    /// </summary>
+    private void AutoFitTraySlotsToBrownTray()
+    {
+        RectTransform trayRect = trayFitBoundsOverride;
+        if (trayRect == null)
+        {
+            Image brownTray = FindBrownTrayImage();
+            if (brownTray != null)
+                trayRect = brownTray.rectTransform;
+        }
+
+        if (trayRect == null || traySlots == null || traySlots.Length == 0)
+            return;
+
+        float cellWidth = trayRect.rect.width / traySlots.Length;
+        float cellHeight = trayRect.rect.height;
+
+        Vector2 fittedSize = new Vector2(cellWidth, cellHeight);
+
+        traySlotTargetSize = fittedSize;
+
+        foreach (Image slot in traySlots)
+        {
+            if (slot == null) continue;
+            slot.preserveAspect = true;
+            slot.rectTransform.sizeDelta = fittedSize;
+        }
+    }
+
+    /// <summary>
+    /// Resizes this slot's Image so the tile sprite's actual VISIBLE (alpha-
+    /// trimmed) art lands at targetSize, not the sprite's full raw pixel
+    /// rect. Different tile sprites can have very different amounts of
+    /// transparent padding baked into their source art — this reads each
+    /// sprite's own trimmed bounds at runtime and compensates per-tile, so
+    /// every gem visually fills the tray box the same way.
+    /// Requires the sprite's Texture Import Mesh Type to be "Tight" (Unity's
+    /// default for Sprite (2D and UI)) so Sprite.bounds reflects the trimmed
+    /// art instead of the full padded canvas.
+    /// </summary>
+    private void FitSpriteToTargetSize(Image image, Vector2 targetSize)
+    {
+        Sprite sprite = image.sprite;
+        if (sprite == null) return;
+
+        TileFitOverride overrideData = default;
+        bool hasOverride = tileFitOverrideLookup != null && tileFitOverrideLookup.TryGetValue(sprite, out overrideData);
+
+        Vector2 autoSize = targetSize;
+        float fullPixelWidth = sprite.rect.width;
+        float fullPixelHeight = sprite.rect.height;
+        if (fullPixelWidth > 0f && fullPixelHeight > 0f)
+        {
+            float trimmedPixelWidth = sprite.bounds.size.x * sprite.pixelsPerUnit;
+            float trimmedPixelHeight = sprite.bounds.size.y * sprite.pixelsPerUnit;
+
+            float paddingRatioX = trimmedPixelWidth / fullPixelWidth;
+            float paddingRatioY = trimmedPixelHeight / fullPixelHeight;
+            float paddingRatio = Mathf.Clamp(Mathf.Min(paddingRatioX, paddingRatioY), 0.05f, 1f);
+
+            // Scale the full (padded) rect up so the trimmed, visible portion of
+            // it equals targetSize. preserveAspect then keeps it centered and
+            // correctly proportioned inside that.
+            autoSize = targetSize / paddingRatio;
+        }
+
+        // Width and Height are applied independently: whichever axis has a
+        // manual override (> 0) uses that value, the other axis (still 0)
+        // falls back to the automatic calculation above.
+        float finalWidth = (hasOverride && overrideData.size.x > 0f) ? overrideData.size.x : autoSize.x;
+        float finalHeight = (hasOverride && overrideData.size.y > 0f) ? overrideData.size.y : autoSize.y;
+
+        image.rectTransform.sizeDelta = new Vector2(finalWidth, finalHeight);
+    }
+
+    /// <summary>
+    /// Nudges this slot's tile by its per-icon Position Offset (if any),
+    /// on top of wherever its home/anchored position was just set to.
+    /// Call this AFTER the slot's rectTransform.position has been set to
+    /// its final resting spot for this turn.
+    /// </summary>
+    private void ApplyTilePositionOffset(Image image)
+    {
+        Sprite sprite = image.sprite;
+        if (sprite == null || tileFitOverrideLookup == null) return;
+
+        if (tileFitOverrideLookup.TryGetValue(sprite, out TileFitOverride overrideData))
+            image.rectTransform.anchoredPosition += overrideData.positionOffset;
+    }
+
     private GameObject FindInactiveSceneObject(string objectName)
     {
         foreach (GameObject sceneObject in Resources.FindObjectsOfTypeAll<GameObject>())
@@ -380,6 +519,7 @@ public class GameBoardManager : MonoBehaviour
 
         slot.sprite = sprite;
         SetAlpha(slot, 1f);
+        FitSpriteToTargetSize(slot, traySlotTargetSize);
         slot.rectTransform.position = tile.transform.position;
 
         tile.RemoveFromBoard();
@@ -395,6 +535,7 @@ public class GameBoardManager : MonoBehaviour
             yield return null;
         }
         slot.rectTransform.position = end;
+        ApplyTilePositionOffset(slot);
 
         yield return StartCoroutine(CheckForMatch());
 
@@ -428,12 +569,10 @@ public class GameBoardManager : MonoBehaviour
         int coinsAfter = gameManager != null ? gameManager.Coins : 0;
         if (gameManager != null)
         {
-            int levelNumber = GetLevelNumber();
+            int levelNumber = GetLevelNumber();//added
+            gameManager.CompleteLevel(levelNumber);
             rewardGranted = gameManager.TryAwardWisdomForLevel(levelNumber, out wisdomBefore, out wisdomAfter);
-            bool coinsRewarded = gameManager.TryAwardCoinsForLevel(levelNumber, out _, out coinsAfter);
-
-            if (coinsRewarded && coinFlyEffect != null)
-                coinFlyEffect.PlayBurst();
+            gameManager.TryAwardCoinsForLevel(levelNumber, out _, out coinsAfter);
         }
 
         // Let win-panel listeners activate the panel before changing its UI.
@@ -459,43 +598,82 @@ public class GameBoardManager : MonoBehaviour
 
     private void SetupLevelRewardBar()
     {
-        if (levelRewardBar == null)
+        if (levelRewardBarSegments == null || levelRewardBarSegments.Length == 0)
             return;
 
-        levelRewardBar.type = Image.Type.Filled;
-        levelRewardBar.fillMethod = Image.FillMethod.Horizontal;
-        levelRewardBar.fillOrigin = (int)Image.OriginHorizontal.Left;
-        levelRewardBar.color = levelRewardFillColor;
+        int savedCompletedLevel = gameManager != null ? gameManager.LastRewardedLevel : 0;
+        int currentLevel = GetLevelNumber();
 
-        int lastCompletedLevel = gameManager != null ? gameManager.LastRewardedLevel : 0;
-        levelRewardBar.fillAmount = GetRewardBarProgress(lastCompletedLevel);
+        int visibleCompletedLevel = savedCompletedLevel;
+        if (visibleCompletedLevel <= 0 && currentLevel > 1)
+            visibleCompletedLevel = Mathf.Max(0, currentLevel - 1);
+
+        if (visibleCompletedLevel <= 0 && currentLevel <= 1)
+            visibleCompletedLevel = 1;
+
+        int filledCount = GetFilledSegmentCount(visibleCompletedLevel);
+        for (int i = 0; i < levelRewardBarSegments.Length; i++)
+            SetSegmentFilled(levelRewardBarSegments[i], i < filledCount);
     }
 
     private IEnumerator UpdateLevelRewardBarNextFrame(int lastCompletedLevel)
     {
         yield return null;
 
-        if (levelRewardBar == null)
+        if (levelRewardBarSegments == null || levelRewardBarSegments.Length == 0)
             yield break;
 
-        float from = levelRewardBar.fillAmount;
-        float to = GetRewardBarProgress(lastCompletedLevel);
+        int fromCount = 0;
+        for (int i = 0; i < levelRewardBarSegments.Length; i++)
+        {
+            if (IsSegmentFilled(levelRewardBarSegments[i]))
+                fromCount++;
+        }
+
+        int toCount = GetFilledSegmentCount(lastCompletedLevel);
+
+        // Animate only the segments that are newly becoming filled, one after another.
+        for (int i = fromCount; i < toCount; i++)
+            yield return StartCoroutine(AnimateSegmentFill(levelRewardBarSegments[i]));
+
+        // Snap every segment to its final filled/empty state, just in case.
+        for (int i = 0; i < levelRewardBarSegments.Length; i++)
+            SetSegmentFilled(levelRewardBarSegments[i], i < toCount);
+    }
+
+    private IEnumerator AnimateSegmentFill(Image segment)
+    {
+        if (segment == null) yield break;
+
+        Color from = segment.color;
+        Color to = levelRewardFillColor;
         float elapsed = 0f;
 
         while (elapsed < rewardBarFillDuration)
         {
             elapsed += Time.deltaTime;
-            levelRewardBar.fillAmount = Mathf.Lerp(from, to, Mathf.Clamp01(elapsed / rewardBarFillDuration));
+            segment.color = Color.Lerp(from, to, Mathf.Clamp01(elapsed / rewardBarFillDuration));
             yield return null;
         }
 
-        levelRewardBar.fillAmount = to;
+        segment.color = to;
     }
 
-    private float GetRewardBarProgress(int lastCompletedLevel)
+    private void SetSegmentFilled(Image segment, bool filled)
     {
-        int segmentCount = Mathf.Max(1, totalRewardBarSegments);
-        return Mathf.Clamp01((float)Mathf.Max(0, lastCompletedLevel) / segmentCount);
+        if (segment == null) return;
+        segment.color = filled ? levelRewardFillColor : levelRewardEmptyColor;
+    }
+
+    private bool IsSegmentFilled(Image segment)
+    {
+        return segment != null && segment.color == levelRewardFillColor;
+    }
+
+    private int GetFilledSegmentCount(int lastCompletedLevel)
+    {
+        int segmentCount = levelRewardBarSegments != null ? levelRewardBarSegments.Length : 0;
+        return Mathf.Clamp(Mathf.Max(0, lastCompletedLevel), 0, segmentCount);
     }
 
     private int GetLevelNumber()
@@ -636,9 +814,9 @@ public class GameBoardManager : MonoBehaviour
                 while (elapsed < shrinkDuration)
                 {
                     elapsed += Time.deltaTime;
-                    float scale = Mathf.Lerp(1f, 0f, elapsed / shrinkDuration);
+                    float progress = elapsed / shrinkDuration;
                     foreach (int idx in toClear)
-                        traySlots[idx].rectTransform.localScale = Vector3.one * scale;
+                        traySlots[idx].rectTransform.localScale = Vector3.Lerp(slotHomeScales[idx], Vector3.zero, progress);
                     yield return null;
                 }
 
@@ -646,7 +824,7 @@ public class GameBoardManager : MonoBehaviour
                 {
                     traySlots[idx].sprite = null;
                     SetAlpha(traySlots[idx], 0f);
-                    traySlots[idx].rectTransform.localScale = Vector3.one;
+                    traySlots[idx].rectTransform.localScale = slotHomeScales[idx];
                     traySlots[idx].rectTransform.position = slotHomePositions[idx];
                 }
 
@@ -701,12 +879,15 @@ public class GameBoardManager : MonoBehaviour
             {
                 traySlots[i].sprite = remaining[i];
                 SetAlpha(traySlots[i], 1f);
+                FitSpriteToTargetSize(traySlots[i], traySlotTargetSize);
                 traySlots[i].rectTransform.position = slotHomePositions[i];
+                ApplyTilePositionOffset(traySlots[i]);
             }
             else
             {
                 traySlots[i].sprite = null;
                 SetAlpha(traySlots[i], 0f);
+                traySlots[i].rectTransform.sizeDelta = traySlotTargetSize;
             }
         }
     }

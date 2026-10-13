@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: af3d064b3a991984e9dafbd2434b74ed, type: 3}
+  m_Name: WorldData_Japan
+  m_EditorClassIdentifier: 
+  worldName: JAPAN
+  levelRangeText: LEVEL 1-10
+  themeColor: {r: 0.9528302, g: 0.39972752, b: 0, a: 0}
+  backgroundSprite: {fileID: 0}
+  levels:
+  - {fileID: 11400000, guid: 33a4df2599127834ab79ed8c0a0656c9, type: 2}
