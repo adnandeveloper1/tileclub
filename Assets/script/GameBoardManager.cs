@@ -559,6 +559,7 @@ public class GameBoardManager : MonoBehaviour
     private void TriggerLevelCompletePopup()
     {
         SetBoardInputBlocked(true);
+        AudioManager.PlayWin(); // to play win sound 
 
         if (gameManager == null)
             gameManager = GameManager.Instance;
@@ -738,6 +739,7 @@ public class GameBoardManager : MonoBehaviour
     {
         levelEnded = true;
         SetBoardInputBlocked(true);
+         AudioManager.PlayLose(); // play sound when player lose the level
 
         if (gameLossPanel != null)
             gameLossPanel.SetActive(true);
@@ -806,6 +808,7 @@ public class GameBoardManager : MonoBehaviour
                 }
 
                 List<int> toClear = new List<int> { a, b, c };
+                AudioManager.PlayMatch();// play burst sound when 3 tiles match
 
                 if (playMatchBurst && matchBurstEffect != null)
                     matchBurstEffect.PlayBurst(traySlots[a].rectTransform.position);

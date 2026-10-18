@@ -2,10 +2,11 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using UnityEngine.EventSystems;
 using TMPro;
 
 // Put this on each level button (the object with the Button component).
-public class LevelButtonUI : MonoBehaviour
+public class LevelButtonUI : MonoBehaviour, IPointerClickHandler
 {
     [Header("Required")]
     public Button button;
@@ -28,8 +29,13 @@ public class LevelButtonUI : MonoBehaviour
     [Header("Unlock animation")]
     public float popScale = 1.25f;
 
+    [Header("Locked tap shake")]
+    public float lockedShakeAngle = 5f;       // how far it tilts (degrees)
+    public float lockedShakeDuration = 0.3f;  // how long the shake lasts (seconds)
+
     private bool isLocked = true;
     private Coroutine anim;
+    private Coroutine shakeAnim;
 
     void OnValidate()
     {
@@ -115,6 +121,35 @@ public class LevelButtonUI : MonoBehaviour
             yield return new WaitForSecondsRealtime(0.8f);
             unlockEffect.SetActive(false);
         }
+    }
+
+    // A locked button has interactable = false, so Button.onClick never fires for it.
+    // This catches the tap directly so we can shake the locked level.
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (!isLocked) return;   // unlocked buttons are handled by Button.onClick
+        PlayLockedShake();
+    }
+
+    public void PlayLockedShake()
+    {
+        AudioManager.PlayLocked();// play sound when player tap on locked level
+        if (shakeAnim != null) StopCoroutine(shakeAnim);
+        shakeAnim = StartCoroutine(LockedShakeRoutine());
+    }
+
+    private IEnumerator LockedShakeRoutine()
+    {
+        Transform t = transform;
+        float time = 0f;
+        while (time < lockedShakeDuration)
+        {
+            time += Time.unscaledDeltaTime;
+            float z = Mathf.Sin(time * 60f) * lockedShakeAngle * (1f - time / lockedShakeDuration);
+            t.localRotation = Quaternion.Euler(0f, 0f, z);
+            yield return null;
+        }
+        t.localRotation = Quaternion.identity;
     }
 
     private void OnClicked()
