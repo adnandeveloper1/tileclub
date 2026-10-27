@@ -66,10 +66,12 @@
   <ItemGroup>
     <Compile Include="Assets\script\SettingToggle.cs" />
     <Compile Include="Assets\script\BirdFlyer.cs" />
+    <Compile Include="Assets\script\effects\FlowerSway.cs" />
     <Compile Include="Assets\script\TouchEffect.cs" />
     <Compile Include="Assets\script\LevelProgress.cs" />
     <Compile Include="Assets\script\FillBarByPoints.cs" />
     <Compile Include="Assets\script\LoadeSceneButton.cs" />
+    <Compile Include="Assets\script\effects\BeachTree.cs" />
     <Compile Include="Assets\script\LevelButtonBounceEffect.cs" />
     <Compile Include="Assets\script\effects\TwinkleEffect.cs" />
     <Compile Include="Assets\script\LevelData.cs" />
@@ -93,6 +95,7 @@
     <Compile Include="Assets\script\WorldData.cs" />
     <Compile Include="Assets\script\LoadingBarController.cs" />
     <Compile Include="Assets\script\SettingPanel.cs" />
+    <Compile Include="Assets\script\effects\Beach.cs" />
     <Compile Include="Assets\script\GameBoardManager.cs" />
     <Compile Include="Assets\script\LevelSceneLoader.cs" />
     <Compile Include="Assets\script\HomeLevelButton.cs" />
@@ -104,6 +107,8 @@
     <Compile Include="Assets\script\LevelButtonUI.cs" />
     <Compile Include="Assets\script\AudioManager.cs" />
     <Compile Include="Assets\script\SafeAreaFitter.cs" />
+    <Compile Include="Assets\script\effects\FireFlyFlow.cs" />
+    <Compile Include="Assets\script\effects\BubbleFloat.cs" />
     <Compile Include="Assets\script\TouchVfx.cs" />
     <Compile Include="Assets\script\SettingStore.cs" />
     <Compile Include="Assets\script\MatchBurstEffect.cs" />

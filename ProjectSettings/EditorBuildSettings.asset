@@ -53,6 +53,33 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/LVL1-10/lvl10.unity
     guid: 155d7f9557c40b040b4514eea9225056
+  - enabled: 1
+    path: Assets/Scenes/LVL10-20/lvl11.unity
+    guid: df28fd92f8a05f64894506c097138db8
+  - enabled: 1
+    path: Assets/Scenes/LVL10-20/lvl12.unity
+    guid: 3e7be56b0fb31de47a3bf7302479f715
+  - enabled: 1
+    path: Assets/Scenes/LVL10-20/lvl13.unity
+    guid: 1b72449d40fc0fe469a5b2a8ffdcde87
+  - enabled: 1
+    path: Assets/Scenes/LVL10-20/lvl14.unity
+    guid: e0e4e1fdce26b7049ab96a143f1e7691
+  - enabled: 1
+    path: Assets/Scenes/LVL10-20/lvl15.unity
+    guid: f971893c44054ff459563d1fc494759e
+  - enabled: 1
+    path: Assets/Scenes/LVL10-20/lvl16.unity
+    guid: cb2b92ff52e822542af689c27b867231
+  - enabled: 1
+    path: Assets/Scenes/LVL10-20/lvl17.unity
+    guid: 67ea46dc0c349ce458b040d8798840c2
+  - enabled: 1
+    path: Assets/Scenes/LVL10-20/lvl18.unity
+    guid: b19061edcba5e5f419100c65451d232d
+  - enabled: 1
+    path: Assets/Scenes/LVL10-20/lvl19.unity
+    guid: 86c34a3ab6513f14b9e654ffafa81214
   m_configObjects:
     com.unity.adaptiveperformance.simulator.provider_settings: {fileID: 11400000,
       guid: 5065792c60d5f1f4aa5f30de60c0b9d3, type: 2}
